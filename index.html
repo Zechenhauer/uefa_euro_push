@@ -401,6 +401,7 @@
         return outputArray;
     }
 
+    // Push Benachrichtigungen aktivieren und in push_subscriptions_uel speichern
     async function requestPushPermission() {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             alert("Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.");
@@ -427,6 +428,7 @@
             const p256dh = subscription.getKey('p256dh') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))) : '';
             const auth = subscription.getKey('auth') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))) : '';
 
+            // Speichern in push_subscriptions_uel:
             const { error } = await supabaseClient.from('push_subscriptions_uel').upsert({
                 endpoint: subscription.endpoint,
                 p256dh: p256dh,
@@ -446,6 +448,7 @@
         }
     }
 
+    // Test-Push spezifisch für die UEL-Tabelle via Edge Function
     async function sendTestPush() {
         try {
             const targetUrl = SUPABASE_URL + '/functions/v1/send-push';
@@ -454,6 +457,7 @@
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    table: 'push_subscriptions_uel',
                     title: "⭐ UEL Test-Tor-Alarm!",
                     body: "Das Test-Tor für die Europa League wurde erfolgreich ausgelöst!"
                 })
@@ -461,7 +465,7 @@
 
             const textResponse = await response.text();
             if (response.ok) {
-                alert("Test-Push erfolgreich ausgelöst!");
+                alert("Test-Push für Europa League erfolgreich ausgelöst!");
             } else {
                 alert("Fehler von der Edge Function: " + textResponse);
             }
@@ -483,6 +487,7 @@
                 mode: 'cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    table: 'push_subscriptions_uel',
                     title: '⭐ UEL TOR! (' + hScore + ':' + aScore + ')',
                     body: home + ' vs ' + away + ' — ' + detail
                 })
