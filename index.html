@@ -153,7 +153,7 @@
         }
         .matchday-btn:hover { background: var(--uefa-blue); border-color: var(--uefa-gold); }
 
-        /* Deutsche Teams optisch hervorheben */
+        /* Leverkusen & Hoffenheim optisch hervorheben */
         tr.german-team-row td {
             background: var(--german-team-bg) !important;
             border-top: 1px solid var(--german-team-border);
@@ -365,13 +365,7 @@
     function isGermanTeam(teamName) {
         if (!teamName) return false;
         let t = teamName.toLowerCase();
-        return t.includes('frankfurt') || t.includes('eintracht') || 
-               t.includes('freiburg') || t.includes('hoffenheim') || 
-               t.includes('leverkusen') || t.includes('stuttgart') || 
-               t.includes('dortmund') || t.includes('bayern') || 
-               t.includes('leipzig') || t.includes('gladbach') ||
-               t.includes('union berlin') || t.includes('werder bremen') ||
-               t.includes('köln') || t.includes('wolfsburg') || t.includes('mainz');
+        return t.includes('leverkusen') || t.includes('hoffenheim');
     }
 
     function toggleAdminMode() {
@@ -401,7 +395,6 @@
         return outputArray;
     }
 
-    // Push Benachrichtigungen aktivieren und in push_subscriptions_uel speichern
     async function requestPushPermission() {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
             alert("Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.");
@@ -428,7 +421,6 @@
             const p256dh = subscription.getKey('p256dh') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))) : '';
             const auth = subscription.getKey('auth') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))) : '';
 
-            // Speichern in push_subscriptions_uel:
             const { error } = await supabaseClient.from('push_subscriptions_uel').upsert({
                 endpoint: subscription.endpoint,
                 p256dh: p256dh,
@@ -439,7 +431,7 @@
                 console.error("Supabase Fehlerdetails:", error);
                 alert("Fehler in Supabase: " + error.message);
             } else {
-                alert("Push-Alarm für die Europa League erfolgreich aktiviert!");
+                alert("Push-Alarm für Leverkusen & Hoffenheim erfolgreich aktiviert!");
             }
 
         } catch (error) {
@@ -448,7 +440,6 @@
         }
     }
 
-    // Test-Push spezifisch für die UEL-Tabelle via Edge Function
     async function sendTestPush() {
         try {
             const targetUrl = SUPABASE_URL + '/functions/v1/send-push';
@@ -459,13 +450,13 @@
                 body: JSON.stringify({
                     table: 'push_subscriptions_uel',
                     title: "⭐ UEL Test-Tor-Alarm!",
-                    body: "Das Test-Tor für die Europa League wurde erfolgreich ausgelöst!"
+                    body: "Das Test-Tor für Leverkusen/Hoffenheim wurde erfolgreich ausgelöst!"
                 })
             });
 
             const textResponse = await response.text();
             if (response.ok) {
-                alert("Test-Push für Europa League erfolgreich ausgelöst!");
+                alert("Test-Push erfolgreich ausgelöst!");
             } else {
                 alert("Fehler von der Edge Function: " + textResponse);
             }
@@ -685,7 +676,11 @@
 
             let matchId = 'uel_' + match.matchID;
             let prev = previousScores[matchId];
-            if (prev !== undefined) {
+            
+            // Push triggert, sobald in einer Partie mit Leverkusen ODER Hoffenheim ein Tor fällt (egal von wem)
+            let isRelevantMatch = isGermanTeam(homeName) || isGermanTeam(awayName);
+
+            if (prev !== undefined && isRelevantMatch) {
                 if (homeGoals > prev.home || awayGoals > prev.away) {
                     let lastGoalObj = (match.goals && match.goals.length > 0) ? match.goals[match.goals.length - 1] : null;
                     let scorer = lastGoalObj ? lastGoalObj.goalGetterName : '';
