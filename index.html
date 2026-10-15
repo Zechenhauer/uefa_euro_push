@@ -284,6 +284,7 @@
         let leagueEvents = [];
         let autoRefreshTimer = null;
         let previousEspnScores = {};
+        let sentGoalEvents = {}; // Verhindert mehrfache Push-Benachrichtigungen für denselben Spielstand
 
         function isGermanTeam(teamName) {
             if (!teamName) return false;
@@ -358,7 +359,7 @@
                     }
                 }
 
-                alert("Push-Alarm für Leverkusen & Hoffenheim erfolgreich aktiviert!");
+                _("Push-Alarm für Leverkusen & Hoffenheim erfolgreich aktiviert!");
 
             } catch (error) {
                 console.error('Fehler bei der Push-Registrierung:', error);
@@ -391,17 +392,24 @@
             }
         }
 
-        async function triggerGoalPush(home, away, hScore, aScore) {
+        async function triggerGoalPush(home, away, hScore, aScore, scorerText = "") {
+            let goalKey = `${home}_${away}_${hScore}_${aScore}`;
+            if (sentGoalEvents[goalKey]) return; // Verhindert doppelte Push-Meldungen bei gleichem Torstand
+            sentGoalEvents[goalKey] = true;
+
             try {
                 const targetUrl = SUPABASE_URL + '/functions/v1/send-push';
+                let bodyText = `${home} vs ${away} — Spielstand: ${hScore}:${aScore}`;
+                if (scorerText) bodyText += ` (${scorerText})`;
+
                 await fetch(targetUrl, {
                     method: 'POST',
                     mode: 'cors',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         table: 'push_subscriptions_uel',
-                        title: '⭐ UEL TOR! (' + hScore + ':' + aScore + ')',
-                        body: home + ' vs ' + away + ' — Tor gefallen!'
+                        title: `⭐ UEL TOR! (${hScore}:${aScore})`,
+                        body: bodyText
                     })
                 });
             } catch (e) {
@@ -576,21 +584,62 @@
                     const homeScore = parseInt(home?.score) || 0;
                     const awayScore = parseInt(away?.score) || 0;
                     const hasResult = home?.score !== undefined && away?.score !== undefined;
+                    const status = event.status?.type;
+                    const isLive = status?.state === "in";
+                    const isCompleted = status?.completed;
 
+                    // Torschützen parsen
+                    let homeScorersList = [];
+                    let awayScorersList = [];
+                    let latestScorerText = "";
+
+                    if (competition?.details && Array.isArray(competition.details)) {
+                        competition.details.forEach(detail => {
+                            if (detail.type?.text === "Goal" || detail.scoringPlay || detail.goalValue > 0) {
+                                let playerName = detail.scorer?.athlete?.displayName 
+                                            || detail.athlete?.displayName 
+                                            || (detail.athletesInvolved && detail.athletesInvolved[0]?.displayName)
+                                            || "";
+
+                                if (!playerName && detail.text) {
+                                    let cleanText = detail.text.replace(/scored.*\$/, '').trim();
+                                    if (cleanText && cleanText.toLowerCase() !== 'goal') {
+                                        playerName = cleanText;
+                                    }
+                                }
+
+                                if (!playerName) {
+                                    playerName = detail.team?.displayName || "Tor";
+                                }
+
+                                let clock = detail.clock?.displayValue || "";
+                                let notes = "";
+                                if (detail.penalty) notes = " Pen";
+                                if (detail.ownGoal) notes = " ET";
+
+                                let goalEntry = clock ? `${playerName} - ${clock}${notes}` : playerName;
+                                latestScorerText = goalEntry;
+
+                                if (detail.team?.id === home?.team?.id) {
+                                    homeScorersList.push(goalEntry);
+                                } else if (detail.team?.id === away?.team?.id) {
+                                    awayScorersList.push(goalEntry);
+                                }
+                            }
+                        });
+                    }
+
+                    // Push-Prüfung für deutsche Teams (Leverkusen / Hoffenheim) bei LIVE-Spielen
                     if (isGermanTeam(homeName) || isGermanTeam(awayName)) {
                         let matchId = 'espn_' + event.id;
                         let prev = previousEspnScores[matchId];
-                        if (prev !== undefined) {
+                        if (prev !== undefined && isLive) {
                             if (homeScore > prev.home || awayScore > prev.away) {
-                                triggerGoalPush(homeName, awayName, homeScore, awayScore);
+                                triggerGoalPush(homeName, awayName, homeScore, awayScore, latestScorerText);
                             }
                         }
                         previousEspnScores[matchId] = { home: homeScore, away: awayScore };
                     }
-
-                    const status = event.status?.type;
-                    const isLive = status?.state === "in";
-                    const isCompleted = status?.completed;
 
                     const gameDate = new Date(event.date);
                     const formattedTimeStr = gameDate.toLocaleTimeString("de-DE", { hour: '2-digit', minute: '2-digit' }) + " Uhr";
@@ -614,47 +663,6 @@
 
                     let homeNameClass = isHomeFav ? 'match-team-name is-favorite text-amber-400' : 'match-team-name text-white';
                     let awayNameClass = isAwayFav ? 'match-team-name is-favorite text-amber-400' : 'match-team-name text-white';
-
-                    // Kombinierter Parser: Prüft Athleten, Text-Feld und holt den Namen robust
-                    let homeScorersList = [];
-                    let awayScorersList = [];
-
-                    if (competition?.details && Array.isArray(competition.details)) {
-                        competition.details.forEach(detail => {
-                            if (detail.type?.text === "Goal" || detail.scoringPlay || detail.goalValue > 0) {
-                                let playerName = detail.scorer?.athlete?.displayName 
-                                              || detail.athlete?.displayName 
-                                              || (detail.athletesInvolved && detail.athletesInvolved[0]?.displayName)
-                                              || "";
-
-                                // Falls kein Athlet direkt gefunden wurde, versuchen wir den Text zu parsen
-                                if (!playerName && detail.text) {
-                                    let cleanText = detail.text.replace(/scored.*\$/, '').trim();
-                                    if (cleanText && cleanText.toLowerCase() !== 'goal') {
-                                        playerName = cleanText;
-                                    }
-                                }
-
-                                // Wenn immer noch kein Name da ist, Fallback auf den Teamnamen oder "Tor"
-                                if (!playerName) {
-                                    playerName = detail.team?.displayName || "Tor";
-                                }
-
-                                let clock = detail.clock?.displayValue || "";
-                                let notes = "";
-                                if (detail.penalty) notes = " Pen";
-                                if (detail.ownGoal) notes = " ET";
-
-                                let goalEntry = clock ? `${playerName} - ${clock}${notes}` : playerName;
-
-                                if (detail.team?.id === home?.team?.id) {
-                                    homeScorersList.push(goalEntry);
-                                } else if (detail.team?.id === away?.team?.id) {
-                                    awayScorersList.push(goalEntry);
-                                }
-                            }
-                        });
-                    }
 
                     let scorersHtml = '';
                     if (homeScorersList.length > 0 || awayScorersList.length > 0) {
