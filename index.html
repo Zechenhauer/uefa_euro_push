@@ -35,7 +35,7 @@
         }
         .live-dot { animation: pulse-cyan 1.5s infinite; width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; }
 
-        /* SPIEL-KARTEN GRID (Im exakten Pokal-App Stil) */
+        /* SPIEL-KARTEN GRID */
         .matches-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -175,8 +175,8 @@
                 <div class="flex items-center gap-2 bg-blue-950 border border-blue-800 px-3 py-1.5 rounded-lg shadow-inner">
                     <span class="text-xs text-blue-300 font-semibold">📅 Zeitraum:</span>
                     <select id="timeframe-select" onchange="onTimeframeChange()" class="bg-transparent text-amber-400 font-bold text-sm focus:outline-none">
-                        <option value="next7" selected>📅 Nächste 7 Tage</option>
-                        <option value="prev7">⏮️ Vergangene 7 Tage</option>
+                        <option value="next7">📅 Nächste 7 Tage</option>
+                        <option value="prev7" selected>⏮️ Vergangene 7 Tage</option>
                         <option value="single">📆 Einzelnes Datum...</option>
                     </select>
                 </div>
@@ -597,7 +597,7 @@
 
                     let statusBadge = '<span style="color: var(--text-muted); font-size: 0.7rem;">Ansetzung</span>';
                     if (isLive) {
-                        statusBadge = '<span class="match-status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: rgba(239, 68, 68, 0.4);">LIVE</span>';
+                        statusBadge = `<span class="match-status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: rgba(239, 68, 68, 0.4);">LIVE - ${status?.detail || ''}</span>`;
                     } else if (isCompleted) {
                         statusBadge = '<span class="match-status-badge">ENDE</span>';
                     }
@@ -615,28 +615,48 @@
                     let homeNameClass = isHomeFav ? 'match-team-name is-favorite text-amber-400' : 'match-team-name text-white';
                     let awayNameClass = isAwayFav ? 'match-team-name is-favorite text-amber-400' : 'match-team-name text-white';
 
-                    // Torschützen aus ESPN-Details extrahieren (falls vorhanden)
-                    let scorersHtml = '';
+                    // Kombinierter Parser: Prüft Athleten, Text-Feld und holt den Namen robust
                     let homeScorersList = [];
                     let awayScorersList = [];
 
-                    if (competition?.details) {
+                    if (competition?.details && Array.isArray(competition.details)) {
                         competition.details.forEach(detail => {
-                            if (detail.type?.text === "Goal" || detail.scoringPlay) {
-                                let scorerName = detail.scorer?.athlete?.displayName || detail.text || "";
-                                let clock = detail.clock?.displayValue || "";
-                                if (scorerName) {
-                                    let formattedScorer = `${scorerName} (${clock})`;
-                                    if (detail.team?.id === home?.team?.id) {
-                                        homeScorersList.push(formattedScorer);
-                                    } else if (detail.team?.id === away?.team?.id) {
-                                        awayScorersList.push(formattedScorer);
+                            if (detail.type?.text === "Goal" || detail.scoringPlay || detail.goalValue > 0) {
+                                let playerName = detail.scorer?.athlete?.displayName 
+                                              || detail.athlete?.displayName 
+                                              || (detail.athletesInvolved && detail.athletesInvolved[0]?.displayName)
+                                              || "";
+
+                                // Falls kein Athlet direkt gefunden wurde, versuchen wir den Text zu parsen
+                                if (!playerName && detail.text) {
+                                    let cleanText = detail.text.replace(/scored.*\$/, '').trim();
+                                    if (cleanText && cleanText.toLowerCase() !== 'goal') {
+                                        playerName = cleanText;
                                     }
+                                }
+
+                                // Wenn immer noch kein Name da ist, Fallback auf den Teamnamen oder "Tor"
+                                if (!playerName) {
+                                    playerName = detail.team?.displayName || "Tor";
+                                }
+
+                                let clock = detail.clock?.displayValue || "";
+                                let notes = "";
+                                if (detail.penalty) notes = " Pen";
+                                if (detail.ownGoal) notes = " ET";
+
+                                let goalEntry = clock ? `${playerName} - ${clock}${notes}` : playerName;
+
+                                if (detail.team?.id === home?.team?.id) {
+                                    homeScorersList.push(goalEntry);
+                                } else if (detail.team?.id === away?.team?.id) {
+                                    awayScorersList.push(goalEntry);
                                 }
                             }
                         });
                     }
 
+                    let scorersHtml = '';
                     if (homeScorersList.length > 0 || awayScorersList.length > 0) {
                         scorersHtml += '<div class="scorers-container">';
                         if (homeScorersList.length > 0) {
@@ -646,6 +666,8 @@
                             scorersHtml += `<div>⚽ ${awayName}: ${awayScorersList.join(', ')}</div>`;
                         }
                         scorersHtml += '</div>';
+                    } else if (isCompleted && (homeScore > 0 || awayScore > 0)) {
+                        scorersHtml += '<div class="scorers-container" style="color: #64748b;">No Goals</div>';
                     }
 
                     const card = document.createElement("div");
