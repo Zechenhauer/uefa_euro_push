@@ -13,16 +13,138 @@
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #070f26; color: #f1f5f9; }
+        :root {
+            --bg-color: #070f26;
+            --card-bg: #0f172a;
+            --card-inner: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --accent-color: #f59e0b;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-color); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         .custom-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
         .custom-scroll::-webkit-scrollbar-track { background: #0f172a; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
         @keyframes pulse-cyan {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
-        .live-dot { animation: pulse-cyan 1.5s infinite; }
+        .live-dot { animation: pulse-cyan 1.5s infinite; width: 8px; height: 8px; background-color: #ef4444; border-radius: 50%; display: inline-block; }
+
+        /* SPIEL-KARTEN GRID (Im exakten Pokal-App Stil) */
+        .matches-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 15px;
+        }
+
+        .match-card {
+            background: #0b1329;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .match-card.favorite-match {
+            border: 1px solid #f59e0b;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.25);
+        }
+        .match-card.favorite-match .match-card-header {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fde047;
+        }
+
+        .match-card-header {
+            background: #111827;
+            padding: 6px 12px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+
+        .match-status-badge {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .match-body {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .match-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+
+        .match-row.winner {
+            background: rgba(34, 197, 94, 0.12);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        .match-row.winner .match-team-name {
+            color: #4ade80;
+            font-weight: bold;
+        }
+
+        .match-team-name.is-favorite {
+            color: #fde047;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+        }
+
+        .match-team {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .match-score {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #ffffff;
+            background: #1e293b;
+            padding: 2px 10px;
+            border-radius: 6px;
+            min-width: 35px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+
+        .scorers-container {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+            padding-top: 6px;
+            border-top: 1px dashed rgba(51, 65, 85, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
     </style>
 </head>
 <body class="p-4 md:p-8 font-sans min-h-screen">
@@ -40,7 +162,7 @@
             
             <div class="flex flex-wrap items-center gap-3">
                 <div id="live-indicator" class="hidden items-center gap-2 bg-red-950 border border-red-700 text-red-400 px-3 py-1.5 rounded-lg text-xs font-bold">
-                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 live-dot"></span>
+                    <span class="live-dot"></span>
                     LIVE SPIEL LÄUFT (Auto-Update 15s)
                 </div>
                 
@@ -438,7 +560,7 @@
                         <span class="text-lg font-bold text-amber-400">📅 ${dateHeader}</span>
                         <span class="text-xs text-slate-400 font-medium">(${groupedMap[dateHeader].length} Spiele)</span>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="group-${dateHeader.replace(/[^a-zA-Z0-9]/g, '')}"></div>
+                    <div class="matches-grid" id="group-${dateHeader.replace(/[^a-zA-Z0-9]/g, '')}"></div>
                 `;
 
                 container.appendChild(daySection);
@@ -453,8 +575,8 @@
                     const awayName = away?.team?.displayName || 'Auswärtsteam';
                     const homeScore = parseInt(home?.score) || 0;
                     const awayScore = parseInt(away?.score) || 0;
+                    const hasResult = home?.score !== undefined && away?.score !== undefined;
 
-                    // Push-Trigger Prüfung für Leverkusen & Hoffenheim
                     if (isGermanTeam(homeName) || isGermanTeam(awayName)) {
                         let matchId = 'espn_' + event.id;
                         let prev = previousEspnScores[matchId];
@@ -473,49 +595,82 @@
                     const gameDate = new Date(event.date);
                     const formattedTimeStr = gameDate.toLocaleTimeString("de-DE", { hour: '2-digit', minute: '2-digit' }) + " Uhr";
 
-                    let statusBadgeClass = "bg-blue-950 text-blue-300 border border-blue-800";
-                    let statusText = `${formattedTimeStr}`;
-
+                    let statusBadge = '<span style="color: var(--text-muted); font-size: 0.7rem;">Ansetzung</span>';
                     if (isLive) {
-                        statusBadgeClass = "bg-red-950 text-red-300 border border-red-600 live-dot font-bold";
-                        statusText = `🔴 LIVE - ${status?.detail || 'In Progress'}`;
+                        statusBadge = '<span class="match-status-badge" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border-color: rgba(239, 68, 68, 0.4);">LIVE</span>';
                     } else if (isCompleted) {
-                        statusBadgeClass = "bg-emerald-950/80 text-emerald-300 border border-emerald-700 font-bold";
-                        statusText = "ENDE";
+                        statusBadge = '<span class="match-status-badge">ENDE</span>';
                     }
 
-                    let isGermanMatch = isGermanTeam(homeName) || isGermanTeam(awayName);
+                    let isHomeWinner = hasResult && isCompleted && (homeScore > awayScore);
+                    let isAwayWinner = hasResult && isCompleted && (awayScore > homeScore);
+
+                    let homeRowClass = isHomeWinner ? 'match-row winner' : 'match-row';
+                    let awayRowClass = isAwayWinner ? 'match-row winner' : 'match-row';
+
+                    let isHomeFav = isGermanTeam(homeName);
+                    let isAwayFav = isGermanTeam(awayName);
+                    let isFavoriteMatch = isHomeFav || isAwayFav;
+
+                    let homeNameClass = isHomeFav ? 'match-team-name is-favorite text-amber-400' : 'match-team-name text-white';
+                    let awayNameClass = isAwayFav ? 'match-team-name is-favorite text-amber-400' : 'match-team-name text-white';
+
+                    // Torschützen aus ESPN-Details extrahieren (falls vorhanden)
+                    let scorersHtml = '';
+                    let homeScorersList = [];
+                    let awayScorersList = [];
+
+                    if (competition?.details) {
+                        competition.details.forEach(detail => {
+                            if (detail.type?.text === "Goal" || detail.scoringPlay) {
+                                let scorerName = detail.scorer?.athlete?.displayName || detail.text || "";
+                                let clock = detail.clock?.displayValue || "";
+                                if (scorerName) {
+                                    let formattedScorer = `${scorerName} (${clock})`;
+                                    if (detail.team?.id === home?.team?.id) {
+                                        homeScorersList.push(formattedScorer);
+                                    } else if (detail.team?.id === away?.team?.id) {
+                                        awayScorersList.push(formattedScorer);
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    if (homeScorersList.length > 0 || awayScorersList.length > 0) {
+                        scorersHtml += '<div class="scorers-container">';
+                        if (homeScorersList.length > 0) {
+                            scorersHtml += `<div>⚽ ${homeName}: ${homeScorersList.join(', ')}</div>`;
+                        }
+                        if (awayScorersList.length > 0) {
+                            scorersHtml += `<div>⚽ ${awayName}: ${awayScorersList.join(', ')}</div>`;
+                        }
+                        scorersHtml += '</div>';
+                    }
+
                     const card = document.createElement("div");
-                    card.className = `p-5 rounded-xl border shadow-lg space-y-4 transition backdrop-blur-sm ${isGermanMatch ? 'bg-amber-950/20 border-amber-500/50' : 'bg-blue-950/40 border-blue-900/60 hover:border-blue-700/60'}`;
-
+                    card.className = isFavoriteMatch ? 'match-card favorite-match' : 'match-card';
                     card.innerHTML = `
-                        <div class="flex justify-between items-center border-b border-blue-900/50 pb-2">
-                            <span class="text-blue-400 text-xs font-medium">${formattedTimeStr}</span>
-                            <span class="px-2.5 py-0.5 rounded-full text-[11px] ${statusBadgeClass}">${statusText}</span>
+                        <div class="match-card-header">
+                            <span>${formattedTimeStr}</span>
+                            ${statusBadge}
                         </div>
-
-                        <div class="space-y-3">
-                            <!-- HEIMTEAM -->
-                            <div class="flex justify-between items-center">
-                                <div class="flex items-center gap-3">
-                                    <img src="${home?.team?.logo || ''}" class="w-8 h-8 object-contain filter drop-shadow" alt="Logo">
-                                    <span class="font-bold ${isGermanTeam(homeName) ? 'text-amber-400' : 'text-white'} text-base">${homeName}</span>
+                        <div class="match-body">
+                            <div class="${homeRowClass}">
+                                <div class="match-team">
+                                    <img src="${home?.team?.logo || ''}" class="w-6 h-6 object-contain" alt="Logo">
+                                    <span class="${homeNameClass}">${homeName}</span>
                                 </div>
-                                <span class="text-2xl font-black ${home?.winner ? 'text-amber-400' : 'text-slate-200'}">
-                                    ${home?.score !== undefined ? home.score : '-'}
-                                </span>
+                                <div class="match-score">${home?.score !== undefined ? home.score : '-'}</div>
                             </div>
-
-                            <!-- AUSWÄRTSTEAM -->
-                            <div class="flex justify-between items-center">
-                                <div class="flex items-center gap-3">
-                                    <img src="${away?.team?.logo || ''}" class="w-8 h-8 object-contain filter drop-shadow" alt="Logo">
-                                    <span class="font-bold ${isGermanTeam(awayName) ? 'text-amber-400' : 'text-white'} text-base">${awayName}</span>
+                            <div class="${awayRowClass}">
+                                <div class="match-team">
+                                    <img src="${away?.team?.logo || ''}" class="w-6 h-6 object-contain" alt="Logo">
+                                    <span class="${awayNameClass}">${awayName}</span>
                                 </div>
-                                <span class="text-2xl font-black ${away?.winner ? 'text-amber-400' : 'text-slate-200'}">
-                                    ${away?.score !== undefined ? away.score : '-'}
-                                </span>
+                                <div class="match-score">${away?.score !== undefined ? away.score : '-'}</div>
                             </div>
+                            ${scorersHtml}
                         </div>
                     `;
                     groupGrid.appendChild(card);
