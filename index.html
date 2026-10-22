@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚽UEL.Ligaphase</title>
+    <title>⚽ UEL Ligaphase</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23f59e0b%22/><text x=%2250%22 y=%2272%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%23ffffff%22>⚽</text></svg>">
     <!-- Supabase Client Bibliothek laden -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -44,59 +44,76 @@
             box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
         }
 
-        /* LIVE-TOR-TICKER LAUFBAND */
-        .goal-ticker-tickerbar {
-            background: linear-gradient(135deg, #2b1808 0%, #131b2e 100%);
-            border: 1px solid var(--uel-amber);
-            border-radius: 8px;
-            padding: 10px 15px;
+        /* LIVE-TICKER (NUR LIVE-SPIELE, LANGSAM & MIT DEUTSCHER-TEAMS-FARBE) */
+        .ticker-wrapper {
+            width: 100%;
+            background: #000000;
+            border: 1px solid #d4af37;
+            border-radius: 6px;
+            overflow: hidden;
             margin-bottom: 15px;
-            display: none;
-            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
+            display: flex;
+            align-items: center;
+            height: 36px;
+            position: relative;
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
         }
-        .tickerbar-header {
-            font-size: 0.72rem;
-            text-transform: uppercase;
+        .ticker-label {
+            background: #d4af37;
+            color: #0c0809;
+            font-size: 0.75rem;
             font-weight: bold;
-            color: var(--uel-bright-amber);
-            margin-bottom: 6px;
+            padding: 0 12px;
+            height: 100%;
             display: flex;
             align-items: center;
-            gap: 6px;
-            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
-            padding-bottom: 4px;
+            z-index: 2;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .tickerbar-items {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+        .ticker-content-box {
+            overflow: hidden;
+            white-space: nowrap;
+            flex: 1;
+            position: relative;
         }
-        .tickerbar-item {
-            font-size: 0.88rem;
+        .ticker-track {
+            display: inline-block;
+            white-space: nowrap;
+            animation: ticker-scroll 95s linear infinite;
+            font-size: 0.85rem;
             color: #ffffff;
-            display: flex;
+            font-weight: 500;
+        }
+        .ticker-track:hover {
+            animation-play-state: paused;
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 25px;
+        }
+        .ticker-match-box {
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: rgba(0, 0, 0, 0.35);
-            padding: 5px 10px;
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            padding: 3px 10px;
             border-radius: 4px;
-            border-left: 3px solid var(--border-color);
-            animation: fadeIn 0.4s ease-in-out;
+            margin: 0 5px;
         }
-        /* Spezielle Klasse für das allerneueste Tor ganz oben */
-        .tickerbar-item.latest-goal {
-            background: rgba(245, 158, 11, 0.18);
-            border-left: 3px solid var(--uel-amber);
-            font-weight: 600;
+        .ticker-match-box.german-team-ticker {
+            background: rgba(227, 179, 64, 0.25);
+            border: 1px solid #fbbf24;
+            font-weight: bold;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
+        .ticker-latest-goal {
+            color: #ffaa00 !important;
+            font-weight: 800;
+            text-shadow: 0 0 8px rgba(255, 170, 0, 0.6);
         }
-        .tickerbar-item .goal-time {
-            color: var(--text-muted);
-            font-size: 0.78rem;
-            margin-left: auto;
+        @keyframes ticker-scroll {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
         }
 
         .title-row {
@@ -482,14 +499,13 @@
 <body>
 
 <div class="container">
-    <!-- LAUFBAND FÜR ALLE TORE DER LIGA -->
-    <div class="goal-ticker-tickerbar" id="goalTickerBar">
-        <div class="tickerbar-header">
-            <span>⚽ EUROPA LEAGUE LIVE-TICKER (ALLE TORE)</span>
-            <span id="tickerBarLiveTime" style="margin-left: auto; color: var(--text-muted); font-weight: normal;"></span>
-        </div>
-        <div class="tickerbar-items" id="tickerBarItemsContainer">
-            <!-- Tore werden hier dynamisch eingefügt -->
+    <!-- LAUFBAND / LIVE-TICKER OBEN (NUR LIVE-SPIELE) -->
+    <div class="ticker-wrapper">
+        <div class="ticker-label">🏆 Ticker</div>
+        <div class="ticker-content-box">
+            <div class="ticker-track" id="tickerTrack">
+                <span class="ticker-item">Keine Live-Spiele aktiv.</span>
+            </div>
         </div>
     </div>
 
@@ -525,7 +541,7 @@
         <div class="stats-grid" id="hoffenheimStatsGrid"></div>
     </div>
 
-    <!-- TORSCHÜTZENLISTE DEUTSCHE TEAMS -->
+    <!-- TORSCHÜTZENLISTE DEUTSCHE TEAMS (NUR TORE) -->
     <div class="section-box">
         <div class="section-header">
             <span>Torschützenliste (Deutsche Teams Live-Daten)</span>
@@ -628,7 +644,7 @@
     let isAdmin = false;
     let globalAllScorers = [];
 
-    let recentGoalsList = JSON.parse(localStorage.getItem('uel_recent_goals_cache') || '[]');
+    let latestGoalMatchId = null;
 
     const matchdaySchedule = {
         1: { title: "Spieltag 1", dates: ["20260916", "20260917"] },
@@ -750,41 +766,50 @@
         return fetchedEvents;
     }
 
-    function renderRecentGoalsTicker() {
-        let tickerBar = document.getElementById('goalTickerBar');
-        let container = document.getElementById('tickerBarItemsContainer');
-        let timeLabel = document.getElementById('tickerBarLiveTime');
+    function updateTicker() {
+        let tickerItems = [];
+        let allEventsToCheck = allLoadedEvents.length > 0 ? allLoadedEvents : (matchdaysCache[currentMatchday] || []);
 
-        if (!tickerBar || !container) return;
+        allEventsToCheck.forEach(ev => {
+            let isLive = ev.status?.type?.state === "in";
+            if (!isLive) return;
 
-        if (recentGoalsList.length === 0) {
-            tickerBar.style.display = 'none';
-            return;
-        }
+            let comp = ev.competitions?.[0];
+            let home = comp?.competitors?.find(c => c.homeAway === "home");
+            let away = comp?.competitors?.find(c => c.homeAway === "away");
+            if (!home || !away) return;
 
-        tickerBar.style.display = 'block';
-        container.innerHTML = '';
+            let hName = home.team?.displayName || 'Heim';
+            let aName = away.team?.displayName || 'Gast';
+            let hScore = home.score !== undefined && home.score !== "" ? home.score : '0';
+            let aScore = away.score !== undefined && away.score !== "" ? away.score : '0';
+            let displayClock = ev.status?.displayClock || "";
 
-        // Exakte Sortierung nach Spielminute (höchster Wert = neuestes Tor)
-        recentGoalsList.sort((a, b) => b.sortVal - a.sortVal);
-        if (recentGoalsList.length > 3) recentGoalsList = recentGoalsList.slice(0, 3);
+            let isGerman = isGermanTeam(hName) || isGermanTeam(aName);
+            let boxClass = isGerman ? "ticker-match-box german-team-ticker" : "ticker-match-box";
 
-        recentGoalsList.forEach((g, index) => {
-            let itemDiv = document.createElement('div');
-            let isLatest = (index === 0);
-            let badgeIcon = isLatest ? '🔥' : '⚽';
-            
-            itemDiv.className = isLatest ? 'tickerbar-item latest-goal' : 'tickerbar-item';
-            itemDiv.innerHTML = `
-                <span>${badgeIcon}</span>
-                <span>${g.text}</span>
-                <span class="goal-time">${g.time}</span>
-            `;
-            container.appendChild(itemDiv);
+            let isNewest = (ev.id === latestGoalMatchId);
+            let flameIcon = isNewest ? '🔥 ' : '';
+            let scoreClass = isNewest ? 'ticker-latest-goal' : '';
+
+            tickerItems.push(`
+                <span class="ticker-item">
+                    <span class="${boxClass}">
+                        ${flameIcon}${hName} vs ${aName} 
+                        <span class="${scoreClass}" style="margin-left:6px;">${hScore}:${aScore}</span> 
+                        <span style="font-size:0.75rem; color:#a0a0a0; margin-left:6px;">(🔴 ${displayClock}')</span>
+                    </span>
+                </span>
+            `);
         });
 
-        if (timeLabel && recentGoalsList.length > 0) {
-            timeLabel.textContent = "Letztes Tor: " + recentGoalsList[0].time;
+        const tickerTrack = document.getElementById('tickerTrack');
+        if (tickerTrack) {
+            if (tickerItems.length > 0) {
+                tickerTrack.innerHTML = tickerItems.join('');
+            } else {
+                tickerTrack.innerHTML = `<span class="ticker-item">Aktuell finden keine Live-Spiele in der Europa League statt.</span>`;
+            }
         }
     }
 
@@ -811,12 +836,15 @@
                 let hName = home.team?.displayName || '';
                 let aName = away.team?.displayName || '';
 
+                let prev = previousScores[matchId];
+                if (prev !== undefined) {
+                    if (hScore > prev.home || aScore > prev.away) {
+                        latestGoalMatchId = ev.id;
+                    }
+                }
+                previousScores[matchId] = { home: hScore, away: aScore };
+
                 let details = comp?.details || [];
-                details.sort((a, b) => parseInt(a.clock?.secs || 0) - parseInt(b.clock?.secs || 0));
-
-                let runningHome = 0;
-                let runningAway = 0;
-
                 for (let d of details) {
                     let typeText = (d.type && d.type.text) ? d.type.text.toLowerCase() : "";
                     const isGoal = d.scoringPlay || typeText.includes("goal");
@@ -824,81 +852,56 @@
                     if (isGoal) {
                         const scoringTeamId = d.team?.id;
                         const isHomeTeam = (scoringTeamId === home.team.id);
-                        if (isHomeTeam) runningHome++;
-                        else runningAway++;
-
                         let playerName = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || 'Unbekannt';
                         let clockVal = d.clock?.displayValue || '0';
-                        
-                        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}_${runningHome}_${runningAway}`;
+                        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}_${hScore}_${aScore}`;
+                        let scoringTeamName = isHomeTeam ? home.team.displayName : away.team.displayName;
+                        let minStr = clockVal ? ` (${clockVal}')` : '';
 
-                        if (playerName && playerName !== 'Unbekannt') {
-                            let minStr = clockVal ? ` (${clockVal})` : '';
-                            if (minStr && !minStr.endsWith("'")) minStr = minStr.replace(')', "')");
-                            let scoringTeamName = isHomeTeam ? home.team.displayName : away.team.displayName;
-                            let timeNow = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+                        if (isGermanTeam(hName) || isGermanTeam(aName)) {
+                            try {
+                                let { data: existing, error: checkError } = await supabaseClient
+                                    .from('sent_goals_uel')
+                                    .select('goal_id')
+                                    .eq('goal_id', uniqueGoalId)
+                                    .maybeSingle();
 
-                            let cleanMinuteNum = parseInt(clockVal) || 0;
-
-                            let goalObject = {
-                                id: uniqueGoalId,
-                                text: `<strong>${runningHome}:${runningAway}</strong> — ${home.team.displayName} vs ${away.team.displayName} (${playerName}${minStr})`,
-                                time: timeNow + ' Uhr',
-                                sortVal: cleanMinuteNum + (Date.now() / 1000000000)
-                            };
-
-                            if (!recentGoalsList.some(g => g.id === uniqueGoalId)) {
-                                recentGoalsList.push(goalObject);
-                                renderRecentGoalsTicker();
-                            }
-
-                            if (isGermanTeam(hName) || isGermanTeam(aName)) {
-                                try {
-                                    let { data: existing, error: checkError } = await supabaseClient
+                                if (!existing && !checkError) {
+                                    let { error: insertError } = await supabaseClient
                                         .from('sent_goals_uel')
-                                        .select('goal_id')
-                                        .eq('goal_id', uniqueGoalId)
-                                        .maybeSingle();
+                                        .insert([{ goal_id: uniqueGoalId }]);
 
-                                    if (!existing && !checkError) {
-                                        let { error: insertError } = await supabaseClient
-                                            .from('sent_goals_uel')
-                                            .insert([{ goal_id: uniqueGoalId }]);
-
-                                        if (!insertError) {
-                                            await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
-                                                method: 'POST',
-                                                mode: 'cors',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    table: 'push_subscriptions_uel',
-                                                    title: `⚽ ${scoringTeamName} — Tor! (${runningHome}:${runningAway})`,
-                                                    body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${home.team.displayName} vs ${away.team.displayName} (${runningHome}:${runningAway})`
-                                                })
-                                            });
-                                        }
+                                    if (!insertError) {
+                                        await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                                            method: 'POST',
+                                            mode: 'cors',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                table: 'push_subscriptions_uel',
+                                                title: `⚽ ${scoringTeamName} — Tor! (${hScore}:${aScore})`,
+                                                body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${home.team.displayName} vs ${away.team.displayName} (${hScore}:${aScore})`
+                                            })
+                                        });
                                     }
-                                } catch (err) {
-                                    console.error("Fehler beim Verarbeiten des Tor-Caches:", err);
                                 }
+                            } catch (err) {
+                                console.error("Fehler beim Verarbeiten des Push-Caches:", err);
                             }
                         }
                     }
                 }
-
-                previousScores[matchId] = { home: hScore, away: aScore };
             }
         }
         
-        localStorage.setItem('uel_recent_goals_cache', JSON.stringify(recentGoalsList));
         localStorage.setItem('uel_previous_scores', JSON.stringify(previousScores));
 
-        let hasLive = currentEvents.some(ev => ev.status?.type?.state === "in");
+        let hasLive = allLoadedEvents.some(ev => ev.status?.type?.state === "in");
         let liveBadge = document.getElementById('liveIndicatorBadge');
         if (liveBadge) liveBadge.style.display = hasLive ? 'flex' : 'none';
 
         renderTeamStats();
         renderAll(currentEvents);
+        updateTicker();
     }
 
     async function changeMatchday(amount) {
@@ -912,6 +915,7 @@
         document.getElementById('matchdayDisplay').textContent = `Spieltag ${currentMatchday}`;
         let events = await fetchMatchdayData(currentMatchday);
         renderMatchdayCards(events);
+        updateTicker();
     }
 
     function renderAll(events) {
@@ -1114,8 +1118,7 @@
             details.forEach(d => {
                 let typeText = (d.type && d.type.text) ? d.type.text.toLowerCase() : "";
                 let playerName = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || '';
-                let minute = d.clock?.displayValue ? ` (${d.clock.displayValue})` : '';
-                if (minute && !minute.endsWith("'")) minute = minute.replace(')', "')");
+                let minute = d.clock?.displayValue ? ` (${d.clock.displayValue}')` : '';
 
                 const isGoal = d.scoringPlay || typeText.includes("goal");
                 const isYellowRed = typeText.includes("yellow-red") || typeText.includes("gelb-rot");
@@ -1134,24 +1137,15 @@
                         if (isHomeTeam) homeEvents.push(goalStr);
                         else awayEvents.push(goalStr);
                     }
-                } else if (isYellowRed) {
-                    if (playerName) {
-                        let yellowRedStr = `🟨🟥 ${playerName}${minute}`;
-                        if (isHomeTeam) homeEvents.push(yellowRedStr);
-                        else awayEvents.push(yellowRedStr);
-                    }
-                } else if (isYellow) {
-                    if (playerName) {
-                        let yellowStr = `🟨 ${playerName}${minute}`;
-                        if (isHomeTeam) homeEvents.push(yellowStr);
-                        else awayEvents.push(yellowStr);
-                    }
-                } else if (isRed) {
-                    if (playerName) {
-                        let redStr = `🟥 ${playerName}${minute}`;
-                        if (isHomeTeam) homeEvents.push(redStr);
-                        else awayEvents.push(redStr);
-                    }
+                } else if (isYellowRed && playerName) {
+                    let cardStr = `🟨🟥 ${playerName}${minute}`;
+                    if (isHomeTeam) homeEvents.push(cardStr); else awayEvents.push(cardStr);
+                } else if (isYellow && playerName) {
+                    let cardStr = `🟨 ${playerName}${minute}`;
+                    if (isHomeTeam) homeEvents.push(cardStr); else awayEvents.push(cardStr);
+                } else if (isRed && playerName) {
+                    let cardStr = `🟥 ${playerName}${minute}`;
+                    if (isHomeTeam) homeEvents.push(cardStr); else awayEvents.push(cardStr);
                 }
             });
 
@@ -1294,8 +1288,6 @@
             await loadAllData();
         }
     }
-
-    renderRecentGoalsTicker();
 
     safeBackgroundCheck();
     setInterval(safeBackgroundCheck, 30000);
