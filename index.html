@@ -835,7 +835,7 @@
 
                             if (!recentGoalsList.some(g => g.id === uniqueGoalId)) {
                                 recentGoalsList.unshift(goalObject);
-                                if (recentGoalsList.length > 3) recentGoalsList = recentGoalsList.slice(0, 3);
+                                if (recentGoalsList.length > 10) recentGoalsList = recentGoalsList.slice(0, 3);
                                 localStorage.setItem('uel_recent_goals_cache', JSON.stringify(recentGoalsList));
                                 renderRecentGoalsTicker();
                             }
