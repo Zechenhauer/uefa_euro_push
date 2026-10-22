@@ -44,6 +44,55 @@
             box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
         }
 
+        /* LIVE-TOR-TICKER LAUFBAND */
+        .goal-ticker-tickerbar {
+            background: linear-gradient(135deg, #2b1808 0%, #131b2e 100%);
+            border: 1px solid var(--uel-amber);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            display: none;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.25);
+        }
+        .tickerbar-header {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            color: var(--uel-bright-amber);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+            padding-bottom: 4px;
+        }
+        .tickerbar-items {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .tickerbar-item {
+            font-size: 0.88rem;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.35);
+            padding: 5px 10px;
+            border-radius: 4px;
+            border-left: 3px solid var(--uel-amber);
+            animation: fadeIn 0.4s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tickerbar-item .goal-time {
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            margin-left: auto;
+        }
+
         .title-row {
             display: flex;
             align-items: center;
@@ -427,6 +476,17 @@
 <body>
 
 <div class="container">
+    <!-- LAUFBAND FÜR DIE LETZTEN 3 TORE -->
+    <div class="goal-ticker-tickerbar" id="goalTickerBar">
+        <div class="tickerbar-header">
+            <span>⚽ EUROPA LEAGUE LIVE-TICKER (LETZTE TORE)</span>
+            <span id="tickerBarLiveTime" style="margin-left: auto; color: var(--text-muted); font-weight: normal;"></span>
+        </div>
+        <div class="tickerbar-items" id="tickerBarItemsContainer">
+            <!-- Tore werden hier dynamisch eingefügt -->
+        </div>
+    </div>
+
     <div class="title-row" style="margin-top: 5px;">
         <div style="font-size: 40px;">🟠</div>
         <h2>UEFA Europa <span>League</span></h2>
@@ -562,6 +622,9 @@
     let isAdmin = false;
     let globalAllScorers = [];
 
+    // Tickerbar Speicher-Array initialisieren
+    let recentGoalsList = JSON.parse(localStorage.getItem('uel_recent_goals_cache') || '[]');
+
     const matchdaySchedule = {
         1: { title: "Spieltag 1", dates: ["20260916", "20260917"] },
         2: { title: "Spieltag 2", dates: ["20261015"] },
@@ -682,6 +745,38 @@
         return fetchedEvents;
     }
 
+    function renderRecentGoalsTicker() {
+        let tickerBar = document.getElementById('goalTickerBar');
+        let container = document.getElementById('tickerBarItemsContainer');
+        let timeLabel = document.getElementById('tickerBarLiveTime');
+
+        if (!tickerBar || !container) return;
+
+        if (recentGoalsList.length === 0) {
+            tickerBar.style.display = 'none';
+            return;
+        }
+
+        tickerBar.style.display = 'block';
+        container.innerHTML = '';
+
+        recentGoalsList.forEach((g, index) => {
+            let itemDiv = document.createElement('div');
+            let badgeIcon = index === 0 ? '🔥' : '⚽';
+            itemDiv.className = 'tickerbar-item';
+            itemDiv.innerHTML = `
+                <span>${badgeIcon}</span>
+                <span>${g.text}</span>
+                <span class="goal-time">${g.time}</span>
+            `;
+            container.appendChild(itemDiv);
+        });
+
+        if (timeLabel && recentGoalsList.length > 0) {
+            timeLabel.textContent = "Letztes Tor: " + recentGoalsList[0].time;
+        }
+    }
+
     async function loadAllData() {
         let allEvents = [];
         for (let m = 1; m <= 8; m++) {
@@ -727,6 +822,24 @@
                         let uniqueGoalId = `${matchId}_${playerName}_${clockVal}_${runningHome}_${runningAway}`;
 
                         if (playerName && playerName !== 'Unbekannt' && (isGermanTeam(hName) || isGermanTeam(aName))) {
+                            let minStr = clockVal ? ` (${clockVal})` : '';
+                            if (minStr && !minStr.endsWith("'")) minStr = minStr.replace(')', "')");
+                            let scoringTeamName = isHomeTeam ? home.team.displayName : away.team.displayName;
+                            let timeNow = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+
+                            let goalObject = {
+                                id: uniqueGoalId,
+                                text: `<strong>${runningHome}:${runningAway}</strong> — ${home.team.displayName} vs ${away.team.displayName} (${playerName}${minStr})`,
+                                time: timeNow + ' Uhr'
+                            };
+
+                            if (!recentGoalsList.some(g => g.id === uniqueGoalId)) {
+                                recentGoalsList.unshift(goalObject);
+                                if (recentGoalsList.length > 3) recentGoalsList = recentGoalsList.slice(0, 3);
+                                localStorage.setItem('uel_recent_goals_cache', JSON.stringify(recentGoalsList));
+                                renderRecentGoalsTicker();
+                            }
+
                             try {
                                 let { data: existing, error: checkError } = await supabaseClient
                                     .from('sent_goals_uel')
@@ -740,11 +853,6 @@
                                         .insert([{ goal_id: uniqueGoalId }]);
 
                                     if (!insertError) {
-                                        let minStr = clockVal ? ` (${clockVal})` : '';
-                                        if (minStr && !minStr.endsWith("'")) minStr = minStr.replace(')', "')");
-
-                                        let scoringTeamName = isHomeTeam ? home.team.displayName : away.team.displayName;
-
                                         await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
                                             method: 'POST',
                                             mode: 'cors',
@@ -780,6 +888,13 @@
 
     async function changeMatchday(amount) {
         currentMatchday = Math.max(1, Math.min(8, currentMatchday + amount));
+        
+        // Dynamische Aktualisierung der Überschrift über der Spieltag-Box
+        let headerSpan = document.querySelector('#matchdayTableHeader span');
+        if (headerSpan) {
+            headerSpan.textContent = `Spieltag ${currentMatchday} — Spiele & Live-Scores`;
+        }
+
         document.getElementById('matchdayDisplay').textContent = `Spieltag ${currentMatchday}`;
         let events = await fetchMatchdayData(currentMatchday);
         renderMatchdayCards(events);
@@ -1165,6 +1280,9 @@
             await loadAllData();
         }
     }
+
+    // Beim Start direkt das Ticker-Laufband aus dem Speicher laden
+    renderRecentGoalsTicker();
 
     safeBackgroundCheck();
     setInterval(safeBackgroundCheck, 30000);
