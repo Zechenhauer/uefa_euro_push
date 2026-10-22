@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚽UEL.Ligaphase</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%23f59e0b%22/><text x=%2250%22 y=%2272%22 font-size=%2260%22 text-anchor=%22middle%22 fill=%22%23ffffff%22>⚽</text></svg>">
+    <!-- Supabase Client Bibliothek laden -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: #131b2e;
+            --text-color: #f0f6fc;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+            --uel-amber: #f59e0b;
+            --uel-amber-hover: #d97706;
+            --uel-dark: #78350f;
+            --accent-green: rgba(46, 160, 67, 0.12);
+            --accent-playoff: rgba(56, 139, 253, 0.10);
+            --accent-german: rgba(227, 179, 64, 0.15);
+            --uel-bright-amber: #fbbf24;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: var(--card-bg);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15);
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 5px;
+        }
+
+        h2 {
+            text-align: center;
+            margin: 0;
+            color: #ffffff;
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        h2 span {
+            color: var(--uel-amber);
+        }
+
+        .subtitle {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .meta-info {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .supabase-badge {
+            color: #3fb950;
+            background: rgba(46, 160, 67, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(46, 160, 67, 0.3);
+            font-weight: 600;
+        }
+
+        @keyframes pulse-amber {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .live-badge-global {
+            display: none;
+            color: #ff7b72;
+            background: rgba(248, 81, 73, 0.15);
+            padding: 3px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(248, 81, 73, 0.4);
+            font-weight: bold;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+        .live-dot-global {
+            width: 8px;
+            height: 8px;
+            background-color: #f85149;
+            border-radius: 50%;
+            animation: pulse-amber 1.2s infinite;
+        }
+
+        .header-action-btn {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .header-action-btn:hover { background: rgba(0, 0, 0, 0.4); }
+
+        .section-box {
+            background: #0b0f19;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            background-color: var(--uel-amber);
+            color: #0b0f19;
+            border: 1px solid var(--border-color);
+            padding: 10px 15px;
+            font-weight: bold;
+            text-align: center;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .matchday-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .matchday-btn {
+            background: #21262d;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .matchday-btn:hover { background: var(--uel-dark); border-color: var(--uel-amber); }
+
+        .german-highlight {
+            color: var(--uel-bright-amber) !important;
+            font-weight: bold;
+        }
+
+        .match-card {
+            background: #131b2e;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .match-card.german-match {
+            border: 1px solid var(--uel-amber);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .match-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .teams-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-bottom: 8px;
+        }
+
+        .match-scorers-container {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            border-top: 1px dashed rgba(255,255,255,0.1);
+            padding-top: 6px;
+            margin-top: 6px;
+            gap: 10px;
+        }
+        .scorers-side { flex: 1; }
+        .scorers-side.home { text-align: right; }
+        .scorers-side.away { text-align: left; }
+
+        .team-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .team-box.home { justify-content: flex-end; text-align: right; }
+        .team-box.away { justify-content: flex-start; text-align: left; }
+
+        .team-logo-sm {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+            padding: 1px;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(248, 81, 73, 0.15);
+            color: #f85149;
+            border: 1px solid rgba(248, 81, 73, 0.4);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+        .live-dot {
+            width: 6px;
+            height: 6px;
+            background-color: #f85149;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 1; }
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+        table.standings-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+        table.standings-table th {
+            background-color: var(--uel-dark);
+            color: #ffffff;
+            padding: 10px 8px;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            border-bottom: 2px solid var(--uel-amber);
+        }
+        table.standings-table td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+        table.standings-table tr:hover { background-color: rgba(245, 158, 11, 0.03); }
+
+        tr.rank-first td { background: var(--accent-green); border-left: 3px solid #3fb950; }
+        tr.rank-playoff td { background: var(--accent-playoff); border-left: 3px solid #58a6ff; }
+        tr.german-team-row td {
+            background: var(--accent-german);
+            border-left: 3px solid var(--uel-amber);
+            font-weight: bold;
+            color: var(--uel-bright-amber);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-card {
+            background: #1b1622;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 10px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--uel-bright-amber);
+            margin-top: 4px;
+        }
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .admin-toggle-wrapper {
+            text-align: right;
+            margin-top: 15px;
+        }
+        .admin-toggle-btn {
+            background: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .admin-toggle-btn:hover {
+            color: var(--uel-bright-amber);
+            border-color: var(--uel-amber);
+        }
+
+        .admin-card {
+            background: #1b1622;
+            border: 1px solid var(--uel-amber);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        .btn {
+            background: var(--uel-amber);
+            color: #0b0f19;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .btn:hover { background: var(--uel-amber-hover); }
+
+        /* Modal für Torschützen-Ranking */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 15px;
+        }
+        .modal-content {
+            background: var(--card-bg);
+            border: 2px solid var(--uel-amber);
+            border-radius: 12px;
+            width: 100%;
+            max-width: 600px;
+            padding: 20px;
+            box-shadow: 0 5px 25px rgba(245, 158, 11, 0.4);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: var(--uel-bright-amber);
+            text-transform: uppercase;
+        }
+        .close-modal-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .close-modal-btn:hover { color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="title-row" style="margin-top: 5px;">
+        <div style="font-size: 40px;">🟠</div>
+        <h2>UEFA Europa <span>League</span></h2>
+        <div style="font-size: 40px;">⚽</div>
+    </div>
+    <div class="subtitle">Ligaphase Saison 2026/27 (Bayer Leverkusen & TSG Hoffenheim im Fokus)</div>
+    <div class="meta-info">
+        <span>⚡ Web-App & Management: Jürgen Schützendorf</span>
+        <span class="supabase-badge">● ESPN API aktiv</span>
+        <div class="live-badge-global" id="liveIndicatorBadge"><span class="live-dot-global"></span> LIVE-SPIELE LÄUFT</div>
+    </div>
+
+    <!-- LEVERKUSEN AUSWERTUNG -->
+    <div class="section-box">
+        <div class="section-header">
+            <span>Bayer 04 Leverkusen — UEL Auswertung</span>
+            <div class="header-actions">
+                <button class="header-action-btn" onclick="openAllScorersModal()">🏆 Alle Torschützen (UEL)</button>
+                <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
+            </div>
+        </div>
+        <div class="stats-grid" id="leverkusenStatsGrid"></div>
+    </div>
+
+    <!-- HOFFENHEIM AUSWERTUNG -->
+    <div class="section-box">
+        <div class="section-header" style="background-color: #3b82f6;">
+            <span>TSG 1899 Hoffenheim — UEL Auswertung</span>
+        </div>
+        <div class="stats-grid" id="hoffenheimStatsGrid"></div>
+    </div>
+
+    <!-- TORSCHÜTZENLISTE DEUTSCHE TEAMS -->
+    <div class="section-box">
+        <div class="section-header">
+            <span>Torschützenliste (Deutsche Teams Live-Daten)</span>
+        </div>
+        <div class="table-container">
+            <table class="standings-table">
+                <thead>
+                    <tr>
+                        <th>Torschütze</th>
+                        <th>Mannschaft</th>
+                        <th style="text-align: center; width: 100px;">Tore</th>
+                    </tr>
+                </thead>
+                <tbody id="germanScorersBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- SPIELTAGS-LISTE -->
+    <div class="section-box">
+        <div class="section-header" id="matchdayTableHeader">
+            <span>Spieltag 3 — Spiele & Live-Scores</span>
+        </div>
+        <div class="matchday-controls">
+            <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger Spieltag</button>
+            <strong id="matchdayDisplay" style="color: var(--uel-bright-amber); font-size: 1.1rem;">Spieltag 3</strong>
+            <button class="matchday-btn" onclick="changeMatchday(1)">Nächster Spieltag ▶</button>
+        </div>
+        <div id="matchdayMatchesContainer"></div>
+    </div>
+
+    <!-- GESAMT-TABELLE -->
+    <div class="section-box">
+        <div class="section-header">
+            <span>Europa League Tabelle (Ligaphase)</span>
+        </div>
+        <div class="table-container">
+            <table class="standings-table">
+                <thead>
+                    <tr>
+                        <th style="width: 35px;">Pl.</th>
+                        <th>Mannschaft</th>
+                        <th style="text-align: center;">Sp</th>
+                        <th style="text-align: center;">S</th>
+                        <th style="text-align: center;">U</th>
+                        <th style="text-align: center;">N</th>
+                        <th style="text-align: center;">Tore</th>
+                        <th style="text-align: center;">Diff</th>
+                        <th style="text-align: center;">Punkte</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ADMIN BEREICH -->
+    <div class="admin-card" id="adminCard">
+        <div style="font-weight: bold; color: var(--uel-bright-amber); margin-bottom: 12px; text-transform: uppercase; font-size: 0.85rem; display: flex; justify-content: space-between; align-items: center;">
+            <span>✏️ Admin-Testbereich (Europa League)</span>
+            <span style="font-size: 0.7rem; color: #3fb950;">● Admin-Modus Aktiv</span>
+        </div>
+        <button class="btn" style="background: #238636; color: #ffffff; margin-bottom: 15px;" onclick="sendTestPush()">🚀 Test-Push Benachrichtigung senden</button>
+    </div>
+
+    <div class="admin-toggle-wrapper">
+        <button class="admin-toggle-btn" onclick="toggleAdminMode()">⚙️ Admin-Zugang</button>
+    </div>
+</div>
+
+<!-- MODAL FÜR ALLE TORSCHÜTZEN DER GESAMTEN LIGA -->
+<div class="modal-overlay" id="allScorersModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>🏆 Europa League — Alle Torschützen</span>
+            <button class="close-modal-btn" onclick="closeAllScorersModal()">✕</button>
+        </div>
+        <div class="table-container">
+            <table class="standings-table">
+                <thead>
+                    <tr>
+                        <th style="width: 45px; text-align: center;">Rang</th>
+                        <th>Torschütze</th>
+                        <th>Mannschaft</th>
+                        <th style="text-align: center; width: 80px;">Tore</th>
+                    </tr>
+                </thead>
+                <tbody id="modalAllScorersBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://lhusylpjnujlqomougmg.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxodXN5bHBqbnVqbHFvbW91Z21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMzA0ODIsImV4cCI6MjEwNDYwNjQ4Mn0.9ugazAA5pEdy9uSaJQWa5BMb7EwSH9d-h5K8ln_PF5A';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const ADMIN_PIN = "1971";
+    let isAdmin = false;
+    let globalAllScorers = [];
+
+    const matchdaySchedule = {
+        1: { title: "Spieltag 1", dates: ["20260916", "20260917"] },
+        2: { title: "Spieltag 2", dates: ["20261015"] },
+        3: { title: "Spieltag 3", dates: ["20261022"] },
+        4: { title: "Spieltag 4", dates: ["20261105"] },
+        5: { title: "Spieltag 5", dates: ["20261126"] },
+        6: { title: "Spieltag 6", dates: ["20261210"] },
+        7: { title: "Spieltag 7", dates: ["20270121"] },
+        8: { title: "Spieltag 8", dates: ["20270128"] }
+    };
+
+    let currentMatchday = 3;
+    let matchdaysCache = {};
+    let allLoadedEvents = [];
+    
+    let previousScores = JSON.parse(localStorage.getItem('uel_previous_scores') || '{}');
+
+    function isLeverkusen(name) {
+        if (!name) return false;
+        let n = name.toLowerCase();
+        return n.includes('leverkusen');
+    }
+
+    function isHoffenheim(name) {
+        if (!name) return false;
+        let n = name.toLowerCase();
+        return n.includes('hoffenheim');
+    }
+
+    function isGermanTeam(name) {
+        return isLeverkusen(name) || isHoffenheim(name);
+    }
+
+    function urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4);
+        const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+        const rawData = window.atob(base64);
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+            outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
+    }
+
+    async function requestPushPermission() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            alert("Push-Benachrichtigungen werden von diesem Browser leider nicht unterstützt.");
+            return;
+        }
+        try {
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') {
+                alert("Die Berechtigung für Benachrichtigungen wurde verweigert.");
+                return;
+            }
+
+            const registration = await navigator.serviceWorker.register('./sw.js');
+            await registration.ready;
+
+            const publicVapidKey = 'BAsnfWgySLti5LzulXfN-xI-x7UDV32LO98YXgg1qdoRY1E1Tl05QPgCvOMgfwe80cSv_K7336-dhJTgBkHUI70';
+            const subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+            });
+
+            const p256dh = subscription.getKey('p256dh') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('p256dh')))) : '';
+            const auth = subscription.getKey('auth') ? btoa(String.fromCharCode.apply(null, new Uint8Array(subscription.getKey('auth')))) : '';
+
+            const { error } = await supabaseClient.from('push_subscriptions_uel').upsert({
+                endpoint: subscription.endpoint,
+                p256dh: p256dh,
+                auth: auth
+            }, { onConflict: 'endpoint' });
+
+            if (error) alert("Fehler in Supabase: " + error.message);
+            else alert("Push-Alarm für Europa League erfolgreich aktiviert!");
+        } catch (error) {
+            alert("Fehler beim Aktivieren der Benachrichtigung: " + error.message);
+        }
+    }
+
+    async function sendTestPush() {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                method: 'POST',
+                mode: 'cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    table: 'push_subscriptions_uel',
+                    title: "⚽ Europa League Test-Alarm",
+                    body: "Das Test-Tor für die UEL wurde erfolgreich ausgelöst!"
+                })
+            });
+            if (response.ok) alert("Test-Push erfolgreich ausgelöst!");
+            else alert("Fehler beim Senden.");
+        } catch (e) {
+            alert("Netzwerkfehler: " + e.message);
+        }
+    }
+
+    async function fetchMatchdayData(matchdayNum) {
+        let dates = matchdaySchedule[matchdayNum].dates || [];
+        let fetchedEvents = [];
+
+        for (let d of dates) {
+            try {
+                let res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.europa/scoreboard?dates=${d}`);
+                let data = await res.json();
+                if (data.events) {
+                    fetchedEvents.push(...data.events);
+                }
+            } catch (err) {
+                console.error(`Fehler beim Laden von Datum ${d}:`, err);
+            }
+        }
+
+        matchdaysCache[matchdayNum] = fetchedEvents;
+        return fetchedEvents;
+    }
+
+    async function loadAllData() {
+        let allEvents = [];
+        for (let m = 1; m <= 8; m++) {
+            let evs = await fetchMatchdayData(m);
+            allEvents.push(...evs);
+        }
+        allLoadedEvents = allEvents;
+
+        let currentEvents = await fetchMatchdayData(currentMatchday);
+
+        for (let ev of currentEvents) {
+            let comp = ev.competitions?.[0];
+            let home = comp?.competitors?.find(c => c.homeAway === "home");
+            let away = comp?.competitors?.find(c => c.homeAway === "away");
+            
+            if (home && away && home.score !== undefined && away.score !== undefined) {
+                let matchId = 'uel_' + ev.id;
+                let hScore = parseInt(home.score);
+                let aScore = parseInt(away.score);
+
+                let hName = home.team?.displayName || '';
+                let aName = away.team?.displayName || '';
+
+                let details = comp?.details || [];
+                details.sort((a, b) => parseInt(a.clock?.secs || 0) - parseInt(b.clock?.secs || 0));
+
+                let runningHome = 0;
+                let runningAway = 0;
+
+                for (let d of details) {
+                    let typeText = (d.type && d.type.text) ? d.type.text.toLowerCase() : "";
+                    const isGoal = d.scoringPlay || typeText.includes("goal");
+
+                    if (isGoal) {
+                        const scoringTeamId = d.team?.id;
+                        const isHomeTeam = (scoringTeamId === home.team.id);
+                        if (isHomeTeam) runningHome++;
+                        else runningAway++;
+
+                        let playerName = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || 'Unbekannt';
+                        let clockVal = d.clock?.displayValue || '0';
+                        
+                        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}_${runningHome}_${runningAway}`;
+
+                        if (playerName && playerName !== 'Unbekannt' && (isGermanTeam(hName) || isGermanTeam(aName))) {
+                            try {
+                                let { data: existing, error: checkError } = await supabaseClient
+                                    .from('sent_goals_uel')
+                                    .select('goal_id')
+                                    .eq('goal_id', uniqueGoalId)
+                                    .maybeSingle();
+
+                                if (!existing && !checkError) {
+                                    let { error: insertError } = await supabaseClient
+                                        .from('sent_goals_uel')
+                                        .insert([{ goal_id: uniqueGoalId }]);
+
+                                    if (!insertError) {
+                                        let minStr = clockVal ? ` (${clockVal})` : '';
+                                        if (minStr && !minStr.endsWith("'")) minStr = minStr.replace(')', "')");
+
+                                        await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+                                            method: 'POST',
+                                            mode: 'cors',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({
+                                                table: 'push_subscriptions_uel',
+                                                title: `⚽ TOR! (${runningHome}:${runningAway})`,
+                                                body: `Torschütze: ${playerName}${minStr}
+(${home.team.displayName} vs ${away.team.displayName})`
+                                            })
+                                        });
+                                    }
+                                }
+                            } catch (err) {
+                                console.error("Fehler beim Verarbeiten des Tor-Caches:", err);
+                            }
+                        }
+                    }
+                }
+
+                previousScores[matchId] = { home: hScore, away: aScore };
+            }
+        }
+        
+        localStorage.setItem('uel_previous_scores', JSON.stringify(previousScores));
+
+        let hasLive = currentEvents.some(ev => ev.status?.type?.state === "in");
+        let liveBadge = document.getElementById('liveIndicatorBadge');
+        if (liveBadge) liveBadge.style.display = hasLive ? 'flex' : 'none';
+
+        renderTeamStats();
+        renderAll(currentEvents);
+    }
+
+    async function changeMatchday(amount) {
+        currentMatchday = Math.max(1, Math.min(8, currentMatchday + amount));
+        document.getElementById('matchdayDisplay').textContent = `Spieltag ${currentMatchday}`;
+        let events = await fetchMatchdayData(currentMatchday);
+        renderMatchdayCards(events);
+    }
+
+    function renderAll(events) {
+        document.getElementById('matchdayDisplay').textContent = `Spieltag ${currentMatchday}`;
+        renderMatchdayCards(events);
+        loadStandingsFromEspn();
+    }
+
+    function calculateStatsFor(teamCheckerFn) {
+        let played = 0, won = 0, draw = 0, lost = 0, goalsFor = 0, goalsAgainst = 0, points = 0;
+        allLoadedEvents.forEach(ev => {
+            let comp = ev.competitions?.[0];
+            let home = comp?.competitors?.find(c => c.homeAway === "home");
+            let away = comp?.competitors?.find(c => c.homeAway === "away");
+            if (!home || !away) return;
+
+            let hName = home.team?.displayName || '';
+            let aName = away.team?.displayName || '';
+
+            let isHomeTarget = teamCheckerFn(hName);
+            let isAwayTarget = teamCheckerFn(aName);
+
+            if (isHomeTarget || isAwayTarget) {
+                let status = ev.status?.type?.completed;
+                if (status && home.score !== undefined && away.score !== undefined) {
+                    let isTargetHome = isHomeTarget;
+                    played++;
+                    let myGoals = isTargetHome ? parseInt(home.score) : parseInt(away.score);
+                    let oppGoals = isTargetHome ? parseInt(away.score) : parseInt(home.score);
+                    goalsFor += myGoals;
+                    goalsAgainst += oppGoals;
+
+                    if (myGoals > oppGoals) { won++; points += 3; }
+                    else if (myGoals === oppGoals) { draw++; points += 1; }
+                    else { lost++; }
+                }
+            }
+        });
+        return { played, won, draw, lost, goalsFor, goalsAgainst, points };
+    }
+
+    function renderTeamStats() {
+        let levStats = calculateStatsFor(isLeverkusen);
+        let hofStats = calculateStatsFor(isHoffenheim);
+
+        let levGrid = document.getElementById('leverkusenStatsGrid');
+        levGrid.innerHTML = `
+            <div class="stat-card"><div class="stat-label">Spiele</div><div class="stat-value">${levStats.played}</div></div>
+            <div class="stat-card"><div class="stat-label">Siege</div><div class="stat-value" style="color: #3fb950;">${levStats.won}</div></div>
+            <div class="stat-card"><div class="stat-label">Remis</div><div class="stat-value" style="color: #e3b341;">${levStats.draw}</div></div>
+            <div class="stat-card"><div class="stat-label">Niederlagen</div><div class="stat-value" style="color: #f85149;">${levStats.lost}</div></div>
+            <div class="stat-card"><div class="stat-label">Tore</div><div class="stat-value">${levStats.goalsFor}:${levStats.goalsAgainst}</div></div>
+            <div class="stat-card"><div class="stat-label">Punkte</div><div class="stat-value">${levStats.points}</div></div>
+        `;
+
+        let hofGrid = document.getElementById('hoffenheimStatsGrid');
+        hofGrid.innerHTML = `
+            <div class="stat-card"><div class="stat-label">Spiele</div><div class="stat-value">${hofStats.played}</div></div>
+            <div class="stat-card"><div class="stat-label">Siege</div><div class="stat-value" style="color: #3fb950;">${hofStats.won}</div></div>
+            <div class="stat-card"><div class="stat-label">Remis</div><div class="stat-value" style="color: #e3b341;">${hofStats.draw}</div></div>
+            <div class="stat-card"><div class="stat-label">Niederlagen</div><div class="stat-value" style="color: #f85149;">${hofStats.lost}</div></div>
+            <div class="stat-card"><div class="stat-label">Tore</div><div class="stat-value">${hofStats.goalsFor}:${hofStats.goalsAgainst}</div></div>
+            <div class="stat-card"><div class="stat-label">Punkte</div><div class="stat-value">${hofStats.points}</div></div>
+        `;
+
+        let germanScorersMap = {};
+        let allScorersMap = {};
+
+        allLoadedEvents.forEach(ev => {
+            let comp = ev.competitions?.[0];
+            let home = comp?.competitors?.find(c => c.homeAway === "home");
+            let away = comp?.competitors?.find(c => c.homeAway === "away");
+            if (!home || !away) return;
+
+            let hName = home.team?.displayName || '';
+            let aName = away.team?.displayName || '';
+            let hLogo = home.team?.logo || '';
+            let aLogo = away.team?.logo || '';
+
+            let details = comp?.details || [];
+            details.forEach(d => {
+                if (d.scoringPlay || (d.type && d.type.text && d.type.text.toLowerCase().includes("goal"))) {
+                    let scorer = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || 'Unbekannt';
+                    if (scorer !== 'Unbekannt' && scorer.trim() !== '') {
+                        let scoringTeamId = d.team?.id;
+                        let isHomeGoal = (scoringTeamId === home.team.id);
+                        
+                        let teamName = isHomeGoal ? hName : aName;
+                        let teamLogo = isHomeGoal ? hLogo : aLogo;
+
+                        let scorerKey = scorer + "_" + teamName;
+
+                        if (!allScorersMap[scorerKey]) {
+                            allScorersMap[scorerKey] = { player: scorer, team: teamName, logo: teamLogo, count: 0 };
+                        }
+                        allScorersMap[scorerKey].count++;
+
+                        if (isGermanTeam(teamName)) {
+                            if (!germanScorersMap[scorerKey]) {
+                                germanScorersMap[scorerKey] = { player: scorer, team: teamName, logo: teamLogo, count: 0 };
+                            }
+                            germanScorersMap[scorerKey].count++;
+                        }
+                    }
+                }
+            });
+        });
+
+        globalAllScorers = Object.values(allScorersMap).sort((a, b) => b.count - a.count);
+        let germanScorersSorted = Object.values(germanScorersMap).sort((a, b) => b.count - a.count);
+        
+        let scorersBody = document.getElementById('germanScorersBody');
+        scorersBody.innerHTML = '';
+
+        if (germanScorersSorted.length === 0) {
+            scorersBody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 10px;">Noch keine Torschützen erfasst</td></tr>`;
+        } else {
+            germanScorersSorted.forEach(item => {
+                let logoImg = item.logo ? `<img src="${item.logo}" class="team-logo-sm" style="vertical-align: middle; margin-right: 6px;">` : '';
+                scorersBody.innerHTML += `
+                    <tr>
+                        <td>⚽ ${item.player}</td>
+                        <td>${logoImg}${item.team}</td>
+                        <td style="text-align: center; font-weight: bold; color: var(--uel-bright-amber);">${item.count}</td>
+                    </tr>
+                `;
+            });
+        }
+    }
+
+    function openAllScorersModal() {
+        let modalBody = document.getElementById('modalAllScorersBody');
+        modalBody.innerHTML = '';
+
+        if (globalAllScorers.length === 0) {
+            modalBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 15px;">Noch keine Torschützen in der Liga erfasst</td></tr>`;
+        } else {
+            globalAllScorers.forEach((item, index) => {
+                let rank = index + 1;
+                let rankDisplay = rank === 1 ? '🥇 1.' : (rank === 2 ? '🥈 2.' : (rank === 3 ? '🥉 3.' : `${rank}.`));
+                let logoImg = item.logo ? `<img src="${item.logo}" class="team-logo-sm" style="vertical-align: middle; margin-right: 6px;">` : '';
+
+                modalBody.innerHTML += `
+                    <tr>
+                        <td style="text-align: center; font-weight: bold;">${rankDisplay}</td>
+                        <td>⚽ ${item.player}</td>
+                        <td>${logoImg}${item.team}</td>
+                        <td style="text-align: center; font-weight: bold; color: var(--uel-bright-amber);">${item.count}</td>
+                    </tr>
+                `;
+            });
+        }
+        document.getElementById('allScorersModal').style.display = 'flex';
+    }
+
+    function closeAllScorersModal() {
+        document.getElementById('allScorersModal').style.display = 'none';
+    }
+
+    function renderMatchdayCards(eventsList) {
+        let container = document.getElementById('matchdayMatchesContainer');
+        container.innerHTML = '';
+
+        if (!eventsList || eventsList.length === 0) {
+            container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">Keine Spiele für diesen Spieltag gefunden.</div>`;
+            return;
+        }
+
+        eventsList.forEach(ev => {
+            let comp = ev.competitions?.[0];
+            let home = comp?.competitors?.find(c => c.homeAway === "home");
+            let away = comp?.competitors?.find(c => c.homeAway === "away");
+            if (!home || !away) return;
+
+            let hName = home.team?.displayName || 'Heimteam';
+            let aName = away.team?.displayName || 'Auswärtsteam';
+            let hLogo = home.team?.logo || '';
+            let aLogo = away.team?.logo || '';
+
+            let status = ev.status?.type;
+            let isLive = status?.state === "in";
+            let isCompleted = status?.completed;
+            let hasScore = home.score !== undefined && away.score !== undefined;
+            let displayClock = ev.status?.displayClock || "";
+
+            let matchDateObj = new Date(ev.date);
+            let dateStr = matchDateObj.toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' });
+            let timeStr = matchDateObj.toLocaleTimeString("de-DE", { hour: '2-digit', minute: '2-digit' }) + " Uhr";
+
+            let isGerman = isGermanTeam(hName) || isGermanTeam(aName);
+
+            let details = comp?.details || [];
+            details.sort((a, b) => parseInt(a.clock?.secs || 0) - parseInt(b.clock?.secs || 0));
+
+            let homeEvents = [];
+            let awayEvents = [];
+            let runningHome = 0;
+            let runningAway = 0;
+
+            details.forEach(d => {
+                let typeText = (d.type && d.type.text) ? d.type.text.toLowerCase() : "";
+                let playerName = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || '';
+                let minute = d.clock?.displayValue ? ` (${d.clock.displayValue})` : '';
+                if (minute && !minute.endsWith("'")) minute = minute.replace(')', "')");
+
+                const isGoal = d.scoringPlay || typeText.includes("goal");
+                const isYellowRed = typeText.includes("yellow-red") || typeText.includes("gelb-rot");
+                const isYellow = typeText.includes("yellow") || typeText.includes("gelbe karte");
+                const isRed = typeText.includes("red") || typeText.includes("rote karte");
+
+                const scoringTeamId = d.team?.id;
+                const isHomeTeam = (scoringTeamId === home.team.id);
+
+                if (isGoal) {
+                    if (isHomeTeam) runningHome++;
+                    else runningAway++;
+
+                    if (playerName) {
+                        let goalStr = `[${runningHome}:${runningAway}] ⚽ ${playerName}${minute}`;
+                        if (isHomeTeam) homeEvents.push(goalStr);
+                        else awayEvents.push(goalStr);
+                    }
+                } else if (isYellowRed) {
+                    if (playerName) {
+                        let yellowRedStr = `🟨🟥 ${playerName}${minute}`;
+                        if (isHomeTeam) homeEvents.push(yellowRedStr);
+                        else awayEvents.push(yellowRedStr);
+                    }
+                } else if (isYellow) {
+                    if (playerName) {
+                        let yellowStr = `🟨 ${playerName}${minute}`;
+                        if (isHomeTeam) homeEvents.push(yellowStr);
+                        else awayEvents.push(yellowStr);
+                    }
+                } else if (isRed) {
+                    if (playerName) {
+                        let redStr = `🟥 ${playerName}${minute}`;
+                        if (isHomeTeam) homeEvents.push(redStr);
+                        else awayEvents.push(redStr);
+                    }
+                }
+            });
+
+            let card = document.createElement('div');
+            card.className = 'match-card';
+            if (isGerman) card.classList.add('german-match');
+
+            let homeClass = isGermanTeam(hName) ? 'german-highlight' : '';
+            let awayClass = isGermanTeam(aName) ? 'german-highlight' : '';
+
+            let scoreText = hasScore ? `<strong>${home.score}:${away.score}</strong>` : `<span style="color: var(--text-muted); font-style: italic;">vs</span>`;
+            
+            if (isLive) {
+                let clockText = displayClock ? ` ${displayClock}'` : '';
+                scoreText += ` <span class="live-badge"><span class="live-dot"></span>LIVE${clockText}</span>`;
+            }
+
+            let eventsHtml = '';
+            if (homeEvents.length > 0 || awayEvents.length > 0) {
+                eventsHtml = `
+                    <div class="match-scorers-container">
+                        <div class="scorers-side home">${homeEvents.join('<br>')}</div>
+                        <div class="scorers-side away">${awayEvents.join('<br>')}</div>
+                    </div>
+                `;
+            }
+
+            card.innerHTML = `
+                <div class="match-header-row">
+                    <span>📅 ${dateStr} - ${timeStr}</span>
+                    <span>${isCompleted ? 'Beendet' : (isLive ? `LIVE (${displayClock}')` : 'Ausstehend')}</span>
+                </div>
+                <div class="teams-row">
+                    <div class="team-box home">
+                        <span class="${homeClass}">${hName}</span>
+                        <img src="${hLogo}" class="team-logo-sm">
+                    </div>
+                    <span style="padding: 0 15px; text-align: center; min-width: 90px;">${scoreText}</span>
+                    <div class="team-box away">
+                        <img src="${aLogo}" class="team-logo-sm">
+                        <span class="${awayClass}">${aName}</span>
+                    </div>
+                </div>
+                ${eventsHtml}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    async function loadStandingsFromEspn() {
+        let tbody = document.getElementById('tableBody');
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 15px;">Lade Tabelle von ESPN...</td></tr>`;
+
+        try {
+            let res = await fetch('https://site.api.espn.com/apis/v2/sports/soccer/uefa.europa/standings');
+            let data = await res.json();
+            let entries = data.children?.[0]?.standings?.entries || data.standings?.entries || [];
+
+            tbody.innerHTML = '';
+            if (entries.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 15px;">Keine Tabellendaten verfügbar.</td></tr>`;
+                return;
+            }
+
+            entries.forEach((entry, idx) => {
+                let team = entry.team;
+                let stats = entry.stats || [];
+                let getStat = (name) => stats.find(s => s.name === name)?.displayValue || "0";
+
+                let rank = idx + 1;
+                let name = team?.displayName || 'Unbekannt';
+                let logo = team?.logos?.[0]?.href || '';
+                let games = getStat("gamesPlayed");
+                let wins = getStat("wins");
+                let draws = getStat("ties");
+                let losses = getStat("losses");
+                let points = getStat("points");
+                let diff = getStat("pointDifferential");
+                let goalsFor = getStat("pointsFor");
+                let goalsAgainst = getStat("pointsAgainst");
+
+                let tr = document.createElement('tr');
+                if (isGermanTeam(name)) {
+                    tr.classList.add('german-team-row');
+                } else {
+                    if (rank <= 8) tr.classList.add('rank-first');
+                    else if (rank >= 9 && rank <= 24) tr.classList.add('rank-playoff');
+                }
+
+                let logoImg = logo ? `<img src="${logo}" class="team-logo-sm" style="vertical-align: middle; margin-right: 6px;">` : '';
+                let formattedDiff = parseInt(diff) > 0 ? '+' + diff : diff;
+
+                tr.innerHTML = `
+                    <td><strong>${rank}.</strong></td>
+                    <td>${logoImg}${name}</td>
+                    <td style="text-align: center;">${games}</td>
+                    <td style="text-align: center;">${wins}</td>
+                    <td style="text-align: center;">${draws}</td>
+                    <td style="text-align: center;">${losses}</td>
+                    <td style="text-align: center;">${goalsFor}:${goalsAgainst}</td>
+                    <td style="text-align: center;">${formattedDiff}</td>
+                    <td style="text-align: center; font-weight: bold;">${points}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (e) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: #f85149; padding: 15px;">Fehler beim Tabellenladen.</td></tr>`;
+        }
+    }
+
+    function toggleAdminMode() {
+        const adminCard = document.getElementById('adminCard');
+        if (isAdmin) {
+            isAdmin = false;
+            adminCard.style.display = 'none';
+            return;
+        }
+        let enteredPin = prompt("Bitte Admin-PIN eingeben:");
+        let cleanPin = enteredPin ? enteredPin.trim() : "";
+        if (cleanPin === ADMIN_PIN) {
+            isAdmin = true;
+            adminCard.style.display = 'block';
+        } else if (enteredPin !== null) {
+            alert("Falsche PIN!");
+        }
+    };
+
+    async function safeBackgroundCheck() {
+        if ('locks' in navigator) {
+            try {
+                await navigator.locks.request('uel_master_lock', { ifAvailable: true }, async (lock) => {
+                    if (!lock) return;
+                    await loadAllData();
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                });
+            } catch (e) {
+                await loadAllData();
+            }
+        } else {
+            await loadAllData();
+        }
+    }
+
+    safeBackgroundCheck();
+    setInterval(safeBackgroundCheck, 30000);
+</script>
+
+</body>
+</html>
