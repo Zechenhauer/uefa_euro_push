@@ -382,7 +382,6 @@
         }
         .btn:hover { background: var(--uel-amber-hover); }
 
-        /* Modal für Torschützen-Ranking */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -531,7 +530,7 @@
     </div>
 </div>
 
-<!-- MODAL FÜR ALLE TORSCHÜTZEN DER GESAMTEN LIGA -->
+<!-- MODAL FÜR ALLE TORSCHÜTZEN -->
 <div class="modal-overlay" id="allScorersModal">
     <div class="modal-content">
         <div class="modal-header">
@@ -559,7 +558,7 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxodXN5bHBqbnVqbHFvbW91Z21nIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwMzA0ODIsImV4cCI6MjEwNDYwNjQ4Mn0.9ugazAA5pEdy9uSaJQWa5BMb7EwSH9d-h5K8ln_PF5A';
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const ADMIN_PIN = "1971";
+    const ADMIN_PIN = "1919";
     let isAdmin = false;
     let globalAllScorers = [];
 
@@ -652,8 +651,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     table: 'push_subscriptions_uel',
-                    title: "⚽ Europa League Test-Alarm",
-                    body: "Das Test-Tor für die UEL wurde erfolgreich ausgelöst!"
+                    title: "⚽ Bayer 04 Leverkusen — Tor! (1:0)",
+                    body: "Torschütze: Test-Spieler (15')\nBegegnung: Bayer 04 Leverkusen vs. TSG Hoffenheim (1:0)"
                 })
             });
             if (response.ok) alert("Test-Push erfolgreich ausgelöst!");
@@ -744,15 +743,16 @@
                                         let minStr = clockVal ? ` (${clockVal})` : '';
                                         if (minStr && !minStr.endsWith("'")) minStr = minStr.replace(')', "')");
 
+                                        let scoringTeamName = isHomeTeam ? home.team.displayName : away.team.displayName;
+
                                         await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
                                             method: 'POST',
                                             mode: 'cors',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
                                                 table: 'push_subscriptions_uel',
-                                                title: `⚽ TOR! (${runningHome}:${runningAway})`,
-                                                body: `Torschütze: ${playerName}${minStr}
-(${home.team.displayName} vs ${away.team.displayName})`
+                                                title: `⚽ ${scoringTeamName} — Tor! (${runningHome}:${runningAway})`,
+                                                body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${home.team.displayName} vs ${away.team.displayName} (${runningHome}:${runningAway})`
                                             })
                                         });
                                     }
@@ -1053,7 +1053,7 @@
             card.innerHTML = `
                 <div class="match-header-row">
                     <span>📅 ${dateStr} - ${timeStr}</span>
-                    <span>${isCompleted ? 'Beendet' : (isLive ? `LIVE (${displayClock}')` : 'Ausstehend')}</span>
+                    <span>${isCompleted ? 'Beendet' : (isLive ? `LIVE (\${displayClock}')` : 'Ausstehend')}</span>
                 </div>
                 <div class="teams-row">
                     <div class="team-box home">
