@@ -840,25 +840,24 @@
                 if (prev !== undefined) {
                     if (hScore > prev.home || aScore > prev.away) {
                         latestGoalMatchId = ev.id;
-                    }
-                }
-                previousScores[matchId] = { home: hScore, away: aScore };
 
-                let details = comp?.details || [];
-                for (let d of details) {
-                    let typeText = (d.type && d.type.text) ? d.type.text.toLowerCase() : "";
-                    const isGoal = d.scoringPlay || typeText.includes("goal");
-
-                    if (isGoal) {
-                        const scoringTeamId = d.team?.id;
-                        const isHomeTeam = (scoringTeamId === home.team.id);
-                        let playerName = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || 'Unbekannt';
-                        let clockVal = d.clock?.displayValue || '0';
-                        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}_${hScore}_${aScore}`;
-                        let scoringTeamName = isHomeTeam ? home.team.displayName : away.team.displayName;
-                        let minStr = clockVal ? ` (${clockVal}')` : '';
-
+                        // Optimierte Push-Auslösung bei Toränderung
                         if (isGermanTeam(hName) || isGermanTeam(aName)) {
+                            let scoringTeamName = hScore > prev.home ? hName : aName;
+                            
+                            // Versuche den neuesten Torschützen aus den Details zu ermitteln
+                            let details = comp?.details || [];
+                            let latestDetail = details[details.length - 1];
+                            let playerName = latestDetail?.athletesInvolved?.[0]?.displayName 
+                                || latestDetail?.player?.displayName 
+                                || latestDetail?.athlete?.displayName 
+                                || 'Deutsches Team';
+                            let clockVal = latestDetail?.clock?.displayValue || '';
+                            let minStr = clockVal ? ` (${clockVal}')` : '';
+
+                            // Eindeutige Goal-ID zur Vermeidung von Dubletten
+                            let uniqueGoalId = `${matchId}_${hScore}-${aScore}_${playerName}`;
+
                             try {
                                 let { data: existing, error: checkError } = await supabaseClient
                                     .from('sent_goals_uel')
@@ -879,7 +878,7 @@
                                             body: JSON.stringify({
                                                 table: 'push_subscriptions_uel',
                                                 title: `⚽ ${scoringTeamName} — Tor! (${hScore}:${aScore})`,
-                                                body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${home.team.displayName} vs ${away.team.displayName} (${hScore}:${aScore})`
+                                                body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${hName} vs ${aName} (${hScore}:${aScore})`
                                             })
                                         });
                                     }
@@ -890,6 +889,7 @@
                         }
                     }
                 }
+                previousScores[matchId] = { home: hScore, away: aScore };
             }
         }
         
