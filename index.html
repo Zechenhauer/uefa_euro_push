@@ -564,6 +564,10 @@
     <div class="section-box">
         <div class="section-header" id="matchdayTableHeader">
             <span>Spieltag 3 — Spiele & Live-Scores</span>
+            <div class="header-actions">
+                <button class="header-action-btn" onclick="openAllScorersModal()">🏆 Alle Torschützen (UEL)</button>
+                <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
+            </div>
         </div>
         <div class="matchday-controls">
             <button class="matchday-btn" onclick="changeMatchday(-1)">◀ Vorheriger Spieltag</button>
@@ -577,6 +581,9 @@
     <div class="section-box">
         <div class="section-header">
             <span>Europa League Tabelle (Ligaphase)</span>
+            <div class="header-actions">
+                <button class="header-action-btn" onclick="requestPushPermission()">🔔 Push-Alarm</button>
+            </div>
         </div>
         <div class="table-container">
             <table class="standings-table">
@@ -643,7 +650,6 @@
     const ADMIN_PIN = "1919";
     let isAdmin = false;
     let globalAllScorers = [];
-
     let latestGoalMatchId = null;
 
     const matchdaySchedule = {
@@ -660,7 +666,6 @@
     let currentMatchday = 3;
     let matchdaysCache = {};
     let allLoadedEvents = [];
-    
     let previousScores = JSON.parse(localStorage.getItem('uel_previous_scores') || '{}');
 
     function isLeverkusen(name) {
@@ -721,7 +726,7 @@
             }, { onConflict: 'endpoint' });
 
             if (error) alert("Fehler in Supabase: " + error.message);
-            else alert("Push-Alarm für Bayer Leverkusen & TSG Hoffenheim erfolgreich aktiviert!");
+            else alert("Push-Alarm für Europa League erfolgreich in Supabase registriert!");
         } catch (error) {
             alert("Fehler beim Aktivieren der Benachrichtigung: " + error.message);
         }
@@ -735,8 +740,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     table: 'push_subscriptions_uel',
-                    title: "⚽ Bayer 04 Leverkusen — Tor! (1:0)",
-                    body: "Torschütze: Test-Spieler (15')\nBegegnung: Bayer 04 Leverkusen vs. Gegner (1:0)"
+                    title: "⚽ Europa League Test-Alarm",
+                    body: "Das Test-Tor für die UEL wurde erfolgreich ausgelöst!"
                 })
             });
             if (response.ok) alert("Test-Push erfolgreich ausgelöst!");
@@ -822,42 +827,47 @@
         allLoadedEvents = allEvents;
 
         let currentEvents = await fetchMatchdayData(currentMatchday);
+        let hasLive = false;
 
         for (let ev of currentEvents) {
             let comp = ev.competitions?.[0];
             let home = comp?.competitors?.find(c => c.homeAway === "home");
             let away = comp?.competitors?.find(c => c.homeAway === "away");
             
-            if (home && away && home.score !== undefined && away.score !== undefined) {
+            if (home && away) {
+                let statusType = ev.status?.type?.state;
+                let isLive = statusType === 'in';
+                if (isLive) hasLive = true;
+
                 let matchId = 'uel_' + ev.id;
-                let hScore = parseInt(home.score);
-                let aScore = parseInt(away.score);
+                let hScore = home.score !== undefined && home.score !== "" && statusType !== 'pre' ? parseInt(home.score) : null;
+                let aScore = away.score !== undefined && away.score !== "" && statusType !== 'pre' ? parseInt(away.score) : null;
 
                 let hName = home.team?.displayName || '';
                 let aName = away.team?.displayName || '';
 
-                let prev = previousScores[matchId];
-                if (prev !== undefined) {
-                    if (hScore > prev.home || aScore > prev.away) {
-                        latestGoalMatchId = ev.id;
+                let details = comp?.details || [];
+                details.sort((a, b) => parseInt(a.clock?.secs || 0) - parseInt(b.clock?.secs || 0));
 
-                        // Optimierte Push-Auslösung bei Toränderung
-                        if (isGermanTeam(hName) || isGermanTeam(aName)) {
-                            let scoringTeamName = hScore > prev.home ? hName : aName;
-                            
-                            // Versuche den neuesten Torschützen aus den Details zu ermitteln
-                            let details = comp?.details || [];
-                            let latestDetail = details[details.length - 1];
-                            let playerName = latestDetail?.athletesInvolved?.[0]?.displayName 
-                                || latestDetail?.player?.displayName 
-                                || latestDetail?.athlete?.displayName 
-                                || 'Deutsches Team';
-                            let clockVal = latestDetail?.clock?.displayValue || '';
-                            let minStr = clockVal ? ` (${clockVal}')` : '';
+                let runningHome = 0;
+                let runningAway = 0;
 
-                            // Eindeutige Goal-ID zur Vermeidung von Dubletten
-                            let uniqueGoalId = `${matchId}_${hScore}-${aScore}_${playerName}`;
+                for (let d of details) {
+                    let typeText = (d.type && d.type.text) ? d.type.text.toLowerCase() : "";
+                    const isGoal = d.scoringPlay || typeText.includes("goal");
 
+                    if (isGoal) {
+                        const scoringTeamId = d.team?.id;
+                        const isHomeTeam = (scoringTeamId === home.team.id);
+                        if (isHomeTeam) runningHome++;
+                        else runningAway++;
+
+                        let playerName = d.athletesInvolved?.[0]?.displayName || d.player?.displayName || d.athlete?.displayName || 'Unbekannt';
+                        let clockVal = d.clock?.displayValue || '0';
+                        let scoringTeamName = isHomeTeam ? hName : aName;
+                        let uniqueGoalId = `${matchId}_${playerName}_${clockVal}`;
+
+                        if (playerName && playerName !== 'Unbekannt' && (isGermanTeam(hName) || isGermanTeam(aName))) {
                             try {
                                 let { data: existing, error: checkError } = await supabaseClient
                                     .from('sent_goals_uel')
@@ -871,20 +881,24 @@
                                         .insert([{ goal_id: uniqueGoalId }]);
 
                                     if (!insertError) {
+                                        latestGoalMatchId = ev.id;
+                                        let minStr = clockVal ? ` (${clockVal})` : '';
+                                        if (minStr && !minStr.endsWith("'")) minStr = minStr.replace(')', "')");
+
                                         await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
                                             method: 'POST',
                                             mode: 'cors',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify({
                                                 table: 'push_subscriptions_uel',
-                                                title: `⚽ ${scoringTeamName} — Tor! (${hScore}:${aScore})`,
-                                                body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${hName} vs ${aName} (${hScore}:${aScore})`
+                                                title: `⚽ ${scoringTeamName} — Tor! (${runningHome}:${runningAway})`,
+                                                body: `Torschütze: ${playerName}${minStr}\nBegegnung: ${hName} vs ${aName} (${runningHome}:${runningAway})`
                                             })
                                         });
                                     }
                                 }
                             } catch (err) {
-                                console.error("Fehler beim Verarbeiten des Push-Caches:", err);
+                                console.error("Fehler beim Verarbeiten des UEL-Tor-Caches:", err);
                             }
                         }
                     }
@@ -895,7 +909,6 @@
         
         localStorage.setItem('uel_previous_scores', JSON.stringify(previousScores));
 
-        let hasLive = allLoadedEvents.some(ev => ev.status?.type?.state === "in");
         let liveBadge = document.getElementById('liveIndicatorBadge');
         if (liveBadge) liveBadge.style.display = hasLive ? 'flex' : 'none';
 
